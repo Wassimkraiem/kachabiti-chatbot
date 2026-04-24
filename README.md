@@ -71,12 +71,21 @@ The app can trace LangChain runs to LangSmith and can optionally pull its chat p
 Add these settings to `.env`:
 
 ```bash
+APP_ENV=development
 LANGSMITH_TRACING=true
 LANGSMITH_API_KEY=...
 LANGSMITH_PROJECT=kachabiti-chatbot
+LANGSMITH_LOCAL_PROJECT=kachabiti-chatbot-local
+LANGSMITH_STAGING_PROJECT=kachabiti-chatbot-staging
 LANGSMITH_PROMPT_NAME=kachabiti-chat
 LANGSMITH_PROMPT_TAG=latest
 ```
+
+Tracing projects are resolved by `APP_ENV`:
+
+- `development`, `dev`, and `local` use `LANGSMITH_LOCAL_PROJECT` when set, otherwise `${LANGSMITH_PROJECT}-local`
+- `staging` uses `LANGSMITH_STAGING_PROJECT` when set, otherwise `${LANGSMITH_PROJECT}-staging`
+- any other environment uses `LANGSMITH_PROJECT`
 
 Push the current default prompt into LangSmith:
 
@@ -122,6 +131,19 @@ export QDRANT_API_KEY=...  # if required by your cluster
 ```
 
 Optional settings are defined in [app/core/settings.py](/home/wassim/kachabiti-chatbot/app/core/settings.py).
+
+For browser clients, CORS can be configured with these optional env vars:
+
+```bash
+export CORS_ALLOW_ORIGINS=http://localhost:3000,https://app.example.com
+export CORS_ALLOW_CREDENTIALS=true
+export CORS_ALLOW_METHODS=GET,POST,PUT,DELETE,OPTIONS
+export CORS_ALLOW_HEADERS=Authorization,Content-Type
+export CORS_EXPOSE_HEADERS=X-Request-ID,X-Process-Time
+export CORS_MAX_AGE=600
+```
+
+`CORS_ALLOW_ORIGINS` also accepts a JSON array. If no origin is configured, CORS middleware stays disabled.
 
 ## Design Notes
 

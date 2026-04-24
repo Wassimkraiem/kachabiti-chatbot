@@ -31,7 +31,7 @@ def configure_langsmith_environment(settings: Settings) -> None:
     variable_map = {
         "LANGSMITH_API_KEY": settings.langsmith_api_key,
         "LANGSMITH_ENDPOINT": settings.langsmith_endpoint,
-        "LANGSMITH_PROJECT": settings.langsmith_project,
+        "LANGSMITH_PROJECT": settings.resolved_langsmith_project,
         "LANGSMITH_WORKSPACE_ID": settings.langsmith_workspace_id,
     }
     for key, value in variable_map.items():

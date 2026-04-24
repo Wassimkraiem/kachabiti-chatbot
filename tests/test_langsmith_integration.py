@@ -1,9 +1,13 @@
+import os
+
+from app.core.settings import Settings
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.domain.models import ChatMessage, RetrievedChunk
 from app.infrastructure.ai.langsmith_integration import (
     build_context_text,
     build_default_chat_prompt,
+    configure_langsmith_environment,
     inject_history,
     to_langchain_history,
 )
@@ -69,3 +73,36 @@ def test_build_context_text_formats_retrieved_chunks():
 
     assert "[1] guide.txt score=0.9700" in context_text
     assert "Relevant context" in context_text
+
+
+def test_resolved_langsmith_project_uses_local_suffix_for_development():
+    settings = Settings(
+        app_env="development",
+        langsmith_project="kachabiti-chatbot",
+    )
+
+    assert settings.resolved_langsmith_project == "kachabiti-chatbot-local"
+
+
+def test_resolved_langsmith_project_uses_staging_override():
+    settings = Settings(
+        app_env="staging",
+        langsmith_project="kachabiti-chatbot",
+        langsmith_staging_project="kachabiti-chatbot-staging-traces",
+    )
+
+    assert settings.resolved_langsmith_project == "kachabiti-chatbot-staging-traces"
+
+
+def test_configure_langsmith_environment_sets_resolved_project(monkeypatch):
+    monkeypatch.delenv("LANGSMITH_PROJECT", raising=False)
+    settings = Settings(
+        app_env="local",
+        langsmith_tracing=True,
+        langsmith_project="kachabiti-chatbot",
+    )
+
+    configure_langsmith_environment(settings)
+
+    assert os.environ["LANGSMITH_TRACING"] == "true"
+    assert os.environ["LANGSMITH_PROJECT"] == "kachabiti-chatbot-local"

@@ -1,8 +1,10 @@
+import json
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -18,6 +20,15 @@ class Settings(BaseSettings):
     app_port: int = 8000
     log_level: str = "INFO"
     data_dir: Path = Path("data")
+    cors_allow_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    cors_allow_origin_regex: str | None = None
+    cors_allow_credentials: bool = False
+    cors_allow_methods: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["*"])
+    cors_allow_headers: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["*"])
+    cors_expose_headers: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["X-Request-ID", "X-Process-Time"]
+    )
+    cors_max_age: int = Field(default=600, ge=0)
 
     openai_api_key: str = ""
     openai_base_url: str | None = None
@@ -28,6 +39,8 @@ class Settings(BaseSettings):
     langsmith_api_key: str = ""
     langsmith_endpoint: str | None = None
     langsmith_project: str = "kachabiti-chatbot"
+    langsmith_local_project: str | None = None
+    langsmith_staging_project: str | None = None
     langsmith_workspace_id: str | None = None
     langsmith_prompt_name: str | None = None
     langsmith_prompt_tag: str = "latest"
@@ -43,6 +56,27 @@ class Settings(BaseSettings):
     default_top_k: int = Field(default=5, ge=1, le=20)
     max_upload_size_bytes: int = Field(default=10 * 1024 * 1024, ge=1024)
 
+    @field_validator(
+        "cors_allow_origins",
+        "cors_allow_methods",
+        "cors_allow_headers",
+        "cors_expose_headers",
+        mode="before",
+    )
+    @classmethod
+    def parse_env_list(cls, value: str | list[str] | None) -> list[str] | None:
+        if value is None or isinstance(value, list):
+            return value
+        if not isinstance(value, str):
+            return value
+
+        normalized = value.strip()
+        if not normalized:
+            return []
+        if normalized.startswith("["):
+            return json.loads(normalized)
+        return [item.strip() for item in normalized.split(",") if item.strip()]
+
     @property
     def uploads_dir(self) -> Path:
         return self.data_dir / "uploads"
@@ -54,6 +88,16 @@ class Settings(BaseSettings):
     @property
     def jobs_dir(self) -> Path:
         return self.data_dir / "jobs"
+
+    @property
+    def resolved_langsmith_project(self) -> str:
+        env_name = self.app_env.strip().lower()
+
+        if env_name in {"local", "development", "dev"}:
+            return (self.langsmith_local_project or f"{self.langsmith_project}-local").strip()
+        if env_name == "staging":
+            return (self.langsmith_staging_project or f"{self.langsmith_project}-staging").strip()
+        return self.langsmith_project.strip()
 
 
 @lru_cache

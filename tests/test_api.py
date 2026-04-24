@@ -1,3 +1,55 @@
+from fastapi.testclient import TestClient
+
+from app.core.settings import get_settings
+from app.main import create_app
+
+
+def test_cors_preflight_returns_expected_headers(monkeypatch):
+    monkeypatch.setenv("CORS_ALLOW_ORIGINS", "http://localhost:3000,https://app.example.com")
+    monkeypatch.setenv("CORS_ALLOW_CREDENTIALS", "true")
+    monkeypatch.setenv("CORS_ALLOW_METHODS", "GET,POST,OPTIONS")
+    monkeypatch.setenv("CORS_ALLOW_HEADERS", "Authorization,Content-Type")
+    get_settings.cache_clear()
+
+    try:
+        app = create_app()
+        with TestClient(app) as test_client:
+            response = test_client.options(
+                "/api/v1/chat/completions",
+                headers={
+                    "Origin": "http://localhost:3000",
+                    "Access-Control-Request-Method": "POST",
+                    "Access-Control-Request-Headers": "Authorization,Content-Type",
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+        assert response.headers["access-control-allow-credentials"] == "true"
+        assert "POST" in response.headers["access-control-allow-methods"]
+        assert "Authorization" in response.headers["access-control-allow-headers"]
+        assert "Content-Type" in response.headers["access-control-allow-headers"]
+    finally:
+        get_settings.cache_clear()
+
+
+def test_cors_simple_request_includes_origin_header(monkeypatch):
+    monkeypatch.setenv("CORS_ALLOW_ORIGINS", "http://localhost:3000")
+    get_settings.cache_clear()
+
+    try:
+        app = create_app()
+        with TestClient(app) as test_client:
+            response = test_client.get("/health", headers={"Origin": "http://localhost:3000"})
+
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+        assert "X-Request-ID" in response.headers["access-control-expose-headers"]
+        assert "X-Process-Time" in response.headers["access-control-expose-headers"]
+    finally:
+        get_settings.cache_clear()
+
+
 def test_ingest_document_creates_job(client):
     test_client, container = client
 
@@ -54,17 +106,22 @@ def test_chat_completion_returns_sources(client):
     assert body["sources"][0]["filename"] == "guide.txt"
 
 
-def test_debug_prompt_endpoint_returns_current_prompt(client):
+def test_debug_prompt_endpoint_returns_current_prompt(client, monkeypatch):
     test_client, _ = client
+    monkeypatch.setenv("LANGSMITH_PROMPT_NAME", "")
+    get_settings.cache_clear()
 
-    response = test_client.get("/api/v1/debug/prompt")
-    body = response.json()
+    try:
+        response = test_client.get("/api/v1/debug/prompt")
+        body = response.json()
 
-    assert response.status_code == 200
-    assert body["source"] == "code"
-    assert sorted(body["input_variables"]) == ["context", "question"]
-    assert body["messages"][0]["role"] == "system"
-    assert "Tunisian Darija" in body["messages"][0]["content"]
+        assert response.status_code == 200
+        assert body["source"] == "code"
+        assert sorted(body["input_variables"]) == ["context", "question"]
+        assert body["messages"][0]["role"] == "system"
+        assert "Tunisian Darija" in body["messages"][0]["content"]
+    finally:
+        get_settings.cache_clear()
 
 
 def test_ready_endpoint_reports_dependency_status(client):
