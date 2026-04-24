@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kachabiti-chatbot"
+version = "0.1.0"
+description = "FastAPI RAG chatbot scaffold with clean architecture, Qdrant, and LangChain-powered OpenAI integrations."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "langchain-core>=0.3.0",
+    "langchain-openai>=0.3.0",
+    "langsmith>=0.1.99",
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.3.0",
+    "python-multipart>=0.0.9",
+    "qdrant-client>=1.10.0",
+    "pypdf>=4.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.27.0",
+    "pytest>=8.2.0",
+    "pytest-asyncio>=1.0.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*", "tests*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

@@ -1,0 +1,25 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ${APP_ENV_FILE:-.env}
+    environment:
+      APP_ENV: docker
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      APP_RELOAD: "true"
+      DATA_DIR: /app/data
+      WAIT_FOR_QDRANT: "true"
+      QDRANT_STARTUP_TIMEOUT_SECONDS: 60
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      - ./app:/app/app
+      - ./scripts:/app/scripts
+      - app_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  app_data:
